@@ -1,0 +1,27 @@
+{
+  "profile": {
+    "name": "Julian Correa",
+    "role": "Software Developer",
+    "summary": "Personal portfolio assistant context"
+  },
+  "skills": [
+    "JavaScript",
+    "Node.js",
+    "Express",
+    "React",
+    "Flutter"
+  ],
+  "projects": [
+    {
+      "name": "Portfolio AI",
+      "description": "Chat assistant for personal portfolio",
+      "stack": ["Node.js", "Express", "Ollama"],
+      "url": ""
+    }
+  ],
+  "links": {
+    "github": "https://github.com/",
+    "linkedin": "https://www.linkedin.com/in/julian-correa-b01535183/",
+    "whatsapp": "https://wa.me/573195328292"
+  }
+}
