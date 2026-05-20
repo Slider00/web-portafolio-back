@@ -1,6 +1,6 @@
 # portfolio-ai-backend
 
-Backend API para el portafolio con endpoint de chat y endpoint de salud.
+Backend del chat informativo del portafolio personal.
 
 ## Requisitos
 
@@ -15,164 +15,74 @@ Backend API para el portafolio con endpoint de chat y endpoint de salud.
 npm install
 ```
 
-2. Crea tu archivo de entorno desde el ejemplo:
+2. Crea tu archivo de entorno:
 
 ```bash
 cp .env.example .env
 ```
 
-3. Configura proveedor de IA en `.env`:
-   - Gratis en deploy (recomendado): `AI_PROVIDER=mock`
-   - Gratis con límite (Groq): `AI_PROVIDER=groq`
-   - Gratis local con modelo local: `AI_PROVIDER=ollama`
-   - OpenAI (cuando quieras activarlo): `AI_PROVIDER=openai`
-4. Define los orígenes del frontend:
-   - `FRONTEND_ORIGIN=http://localhost:5173`
-   - `FRONTEND_ORIGIN_PROD=https://tu-dominio.vercel.app`
+3. Configura orígenes del frontend en `.env`:
 
-Variables para Ollama:
-
-- `OLLAMA_BASE_URL=http://localhost:11434`
-- `OLLAMA_MODEL=llama3.1:8b`
-
-Variables para OpenAI:
-
-- `OPENAI_API_KEY=sk-...`
-
-Variables para Groq:
-
-- `GROQ_API_KEY=gsk_...`
-- `GROQ_BASE_URL=https://api.groq.com/openai/v1`
-- `GROQ_MODEL=llama-3.1-8b-instant`
-
-Variables para Mock (sin costo):
-
-- `AI_PROVIDER=mock`
-- Responde desde contexto local (`src/data/projects.json`) sin llamar a proveedores externos.
+- `FRONTEND_ORIGIN=http://localhost:5173`
+- `FRONTEND_ORIGIN_PROD=https://tu-dominio.vercel.app`
 
 ## Scripts
 
 | Script | Comando | ¿Qué hace? |
 |---|---|---|
-| `dev` | `npm run dev` | Inicia el servidor en modo desarrollo con recarga automática al cambiar archivos. |
-| `start` | `npm run start` | Inicia el servidor en modo normal (sin watch), útil para correr en producción/local estable. |
-| `test` | `npm run test` | Ejecuta pruebas con Vitest y genera reporte de cobertura. |
-| `test:watch` | `npm run test:watch` | Ejecuta pruebas en modo watch (re-ejecuta al detectar cambios). |
-| `lint` | `npm run lint` | Analiza el código con ESLint para detectar errores y malas prácticas. |
-| `lint:fix` | `npm run lint:fix` | Corrige automáticamente problemas de lint que se pueden arreglar solos. |
-| `format` | `npm run format` | Verifica si el formato del código cumple las reglas de Prettier. |
-| `format:write` | `npm run format:write` | Aplica automáticamente el formato de Prettier a los archivos. |
-| `prepare` | `npm run prepare` | Inicializa Husky para habilitar hooks de Git. |
-| `precommit:check` | `npm run precommit:check` | Ejecuta validaciones previas al commit (`lint` + `test`). |
-
-## Arquitectura del proyecto
-
-Estructura actual:
-
-```text
-.
-├── src/
-│   ├── app.js
-│   └── server.js
-├── test/
-│   └── health.test.js
-├── .env.example
-└── README.md
-```
-
-Responsabilidades:
-
-- `src/app.js`: define la aplicación Express (middlewares, rutas, validaciones, manejo de errores).
-- `src/server.js`: punto de arranque del servidor (`listen`) y carga de variables de entorno.
-- `test/*.test.js`: pruebas automatizadas (unitarias/integración ligera de endpoints).
-
-Regla práctica:
-
-- `app.js` no debe arrancar puertos.
-- `server.js` no debe contener lógica de negocio.
-- Esto permite probar `app` sin acoplar tests al proceso del servidor.
-
-Cómo escalar por módulos:
-
-- Crear carpetas por dominio dentro de `src/modules`, por ejemplo:
-  - `src/modules/chat/chat.routes.js`
-  - `src/modules/chat/chat.controller.js`
-  - `src/modules/chat/chat.service.js`
-  - `src/modules/chat/chat.schema.js`
-- Mantener utilidades transversales en `src/shared` (logger, middlewares, errores, helpers).
+| `dev` | `npm run dev` | Inicia el servidor en modo desarrollo con recarga automática. |
+| `start` | `npm run start` | Inicia el servidor en modo normal. |
+| `test` | `npm run test` | Ejecuta pruebas con Vitest y cobertura. |
+| `test:watch` | `npm run test:watch` | Ejecuta pruebas en modo watch. |
+| `lint` | `npm run lint` | Analiza el código con ESLint. |
+| `lint:fix` | `npm run lint:fix` | Corrige problemas de lint automáticamente. |
+| `format` | `npm run format` | Verifica formato con Prettier. |
+| `format:write` | `npm run format:write` | Aplica formato con Prettier. |
 
 ## Endpoints
 
 - `GET /health`: estado del servicio.
-- `POST /api/chat`: endpoint de chat.
+- `POST /api/chat`: chat informativo del portafolio.
+
+Body esperado:
+
+```json
+{
+  "message": "texto del usuario",
+  "history": [{ "role": "user|assistant", "content": "..." }]
+}
+```
+
+Respuesta:
+
+```json
+{
+  "reply": "...",
+  "suggestions": ["..."],
+  "actions": [{ "type": "link", "label": "...", "url": "..." }],
+  "contact": { "type": "whatsapp", "url": "..." }
+}
+```
+
+## Datos del chat
+
+El contenido de respuestas se toma de:
+
+- `src/data/projects.json`
 
 ## Swagger
 
 - UI: `http://localhost:4000/docs`
-- JSON OpenAPI: `http://localhost:4000/docs.json`
+- JSON: `http://localhost:4000/docs.json`
 
-Con el backend corriendo (`npm run dev`), abre `/docs` en el navegador para visualizar y probar los servicios.
+## Deploy en Vercel
 
-## Deploy en Vercel (modo gratis con mock)
+Este proyecto incluye:
 
-Este proyecto incluye entrypoint serverless para Vercel en `api/index.js` y rewrites en `vercel.json`.
+- entrypoint serverless en `api/index.js`
+- rewrites en `vercel.json`
 
 Variables recomendadas en Vercel:
 
-- `AI_PROVIDER=mock`
 - `FRONTEND_ORIGIN=http://localhost:5173`
 - `FRONTEND_ORIGIN_PROD=https://tu-frontend.vercel.app`
-
-No necesitas `OPENAI_API_KEY` para modo `mock`.
-
-Rutas en producción Vercel:
-
-- `/health`
-- `/api/chat`
-- `/docs`
-
-## Ollama (gratis local)
-
-Para Mac M3 con 16GB RAM, recomendado comenzar con `llama3.1:8b`.
-
-1. Instalar y levantar Ollama:
-
-```bash
-brew install ollama
-ollama serve
-```
-
-2. Descargar modelo:
-
-```bash
-ollama pull llama3.1:8b
-```
-
-3. Verifica que `.env` tenga:
-
-```env
-AI_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.1:8b
-```
-
-4. Inicia backend:
-
-```bash
-npm run dev
-```
-
-## Flujo recomendado
-
-Antes de hacer commit:
-
-```bash
-npm run lint
-npm run test
-```
-
-Para desarrollo diario:
-
-```bash
-npm run dev
-```

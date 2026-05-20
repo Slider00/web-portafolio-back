@@ -2,7 +2,6 @@ import cors from "cors";
 import express from "express";
 import { readFileSync } from "node:fs";
 import helmet from "helmet";
-import OpenAI from "openai";
 import pinoHttp from "pino-http";
 import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
@@ -41,12 +40,6 @@ You are Julian Correa's portfolio assistant.
 Answer based on his profile, projects, skills and experience.
 Be concise, clear, professional. If data is unknown, say so.
 `;
-const AI_PROVIDER = process.env.AI_PROVIDER || "mock";
-const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.1:8b";
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_BASE_URL = process.env.GROQ_BASE_URL || "https://api.groq.com/openai/v1";
-const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
 const WHATSAPP_NUMBER = "573195328292";
 const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}`;
 const PROJECTS_FILE_URL = new URL("./data/projects.json", import.meta.url);
@@ -77,10 +70,6 @@ const ACTIONS = [
     url: portfolioLinks.linkedin || "https://www.linkedin.com/",
   },
 ];
-const PORTFOLIO_CONTEXT_PROMPT = `
-Portfolio data:
-${JSON.stringify(projectsData)}
-`;
 const buildMockReply = (message) => {
   const msg = message.toLowerCase();
   const projectNames = (projectsData.projects || []).map((p) => p.name).filter(Boolean);
@@ -299,92 +288,8 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
-    if (AI_PROVIDER === "mock") {
-      return res.json({
-        reply: buildMockReply(parseResult.data.message),
-        suggestions: SUGGESTIONS,
-        actions: ACTIONS,
-      });
-    }
-
-    const messages = [
-      { role: "system", content: `${SYSTEM_PROMPT}\n${PORTFOLIO_CONTEXT_PROMPT}` },
-      ...historyMessages,
-      { role: "user", content: parseResult.data.message },
-    ];
-
-    if (AI_PROVIDER === "ollama") {
-      const ollamaResponse = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: OLLAMA_MODEL,
-          messages,
-          stream: false,
-        }),
-      });
-
-      if (!ollamaResponse.ok) {
-        const errorBody = await ollamaResponse.text();
-        req.log.error(
-          {
-            status: ollamaResponse.status,
-            provider: AI_PROVIDER,
-            ollamaBaseUrl: OLLAMA_BASE_URL,
-            ollamaModel: OLLAMA_MODEL,
-            errorBody,
-          },
-          "ollama_chat_error"
-        );
-        return res.status(500).json({ error: "chat_error" });
-      }
-
-      const ollamaData = await ollamaResponse.json();
-      return res.json({
-        reply: ollamaData?.message?.content ?? "",
-        suggestions: SUGGESTIONS,
-        actions: ACTIONS,
-      });
-    }
-
-    if (AI_PROVIDER === "groq") {
-      if (!GROQ_API_KEY || GROQ_API_KEY === "tu_groq_api_key") {
-        req.log.error("Invalid GROQ_API_KEY (missing or placeholder)");
-        return res.status(500).json({ error: "chat_error" });
-      }
-
-      const client = new OpenAI({
-        apiKey: GROQ_API_KEY,
-        baseURL: GROQ_BASE_URL,
-      });
-
-      const completion = await client.chat.completions.create({
-        model: GROQ_MODEL,
-        messages,
-        temperature: 0.4,
-      });
-
-      return res.json({
-        reply: completion.choices?.[0]?.message?.content ?? "",
-        suggestions: SUGGESTIONS,
-        actions: ACTIONS,
-      });
-    }
-
-    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "tu_api_key") {
-      req.log.error("Invalid OPENAI_API_KEY (missing or placeholder)");
-      return res.status(500).json({ error: "chat_error" });
-    }
-
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const completion = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages,
-      temperature: 0.4,
-    });
-
     return res.json({
-      reply: completion.choices?.[0]?.message?.content ?? "",
+      reply: buildMockReply(parseResult.data.message),
       suggestions: SUGGESTIONS,
       actions: ACTIONS,
     });
@@ -392,10 +297,7 @@ app.post("/api/chat", async (req, res) => {
     req.log.error(
       {
         err,
-        provider: AI_PROVIDER,
-        openaiStatus: err?.status,
-        openaiCode: err?.code,
-        openaiType: err?.type,
+        systemPrompt: SYSTEM_PROMPT,
       },
       "chat_error"
     );

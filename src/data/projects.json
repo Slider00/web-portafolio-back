@@ -1,27 +1,126 @@
 {
   "profile": {
     "name": "Julian Correa",
-    "role": "Software Developer",
-    "summary": "Personal portfolio assistant context"
+    "role": "Front End Developer (Web & Mobile)",
+    "summary": "For the past four and a half years, I have honed my frontend development skills, building dynamic web and mobile application solutions."
   },
   "skills": [
     "JavaScript",
-    "Node.js",
-    "Express",
+    "TypeScript",
     "React",
-    "Flutter"
+    "Vite",
+    "Flutter",
+    "Dart",
+    "TailwindCSS",
+    "C#",
+    ".NET Core",
+    "Blazor",
+    "ASP.NET Core MVC",
+    "Entity Framework Core",
+    "Auth0",
+    "SQLite",
+    "PHP",
+    "MySQL",
+    "Azure",
+    "Stripe",
+    "Git"
+  ],
+  "experience": [
+    {
+      "date": "2020-2025",
+      "title": "Front End Developer (Web & Mobile App)",
+      "company": "Innventa software y technology",
+      "highlights": [
+        "Built front-end interfaces for web and mobile applications with a strong focus on scalable architecture, maintainability, and user experience.",
+        "Implemented reusable component systems and responsive layouts across multiple devices and screen resolutions.",
+        "Integrated REST APIs, handled complex state management, and implemented form validation for business-critical workflows.",
+        "Applied performance best practices (lazy loading, render optimization, bundle reduction) and accessibility standards.",
+        "Collaborated closely with design, backend, and QA teams under agile methodologies to deliver high-impact releases continuously."
+      ]
+    },
+    {
+      "date": "2025-2026",
+      "title": "Senior Front End Developer (Web & Mobile App)",
+      "company": "Bety (Professional Services)",
+      "highlights": [
+        "Led the web and mobile front-end domain, defining code standards, project structure, and consistent UI guidelines.",
+        "Designed and evolved SaaS product interfaces, improving usability, conversion, and navigation flow.",
+        "Delivered advanced performance optimizations for mobile and desktop (3D rendering, interactions, scrolling, and critical asset loading).",
+        "Provided technical mentorship to the front-end team in architecture, debugging, code quality, and development best practices.",
+        "Coordinated strategically with product, design, and business stakeholders to prioritize features, reduce technical debt, and accelerate releases."
+      ]
+    }
   ],
   "projects": [
     {
-      "name": "Portfolio AI",
-      "description": "Chat assistant for personal portfolio",
-      "stack": ["Node.js", "Express", "Ollama"],
-      "url": ""
+      "name": "E-commerce Platform",
+      "description": "Facilitates purchases from international websites like Amazon and eBay, allowing customers to shop from these sites and have products delivered domestically.",
+      "stack": ["C#", ".Net", "Ef Core", "TailwindCSS"],
+      "url": "",
+      "repo": ""
+    },
+    {
+      "name": "Authentication & Authorization System",
+      "description": "A secure authentication and authorization system.",
+      "stack": ["Auth0", "React", "SQLite", "TailwindCSS"],
+      "url": "",
+      "repo": ""
+    },
+    {
+      "name": "Blazor Web App",
+      "description": "A modern, interactive web application.",
+      "stack": ["Blazor", ".NET Core", "SQLite", "TailwindCSS"],
+      "url": "",
+      "repo": ""
+    },
+    {
+      "name": "C++ Game Engine",
+      "description": "A lightweight C++ game engine.",
+      "stack": ["C++", "C#", "Git", "Microsoft"],
+      "url": "",
+      "repo": ""
+    },
+    {
+      "name": "WordPress Custom Theme",
+      "description": "A fully customizable WordPress theme.",
+      "stack": ["WordPress", "HTML5", "CSS3", "Vite.js"],
+      "url": "",
+      "repo": ""
+    },
+    {
+      "name": "Online Learning Platform",
+      "description": "A web application for video courses and quizzes.",
+      "stack": ["Blazor", "Azure", "Stripe", "TailwindCSS"],
+      "url": "",
+      "repo": ""
+    },
+    {
+      "name": "Flutter Mobile App",
+      "description": "Cross-platform app focused on fast UX and clean architecture.",
+      "stack": ["Flutter", "Dart"],
+      "url": "",
+      "repo": ""
+    },
+    {
+      "name": "React + Vite Web Platform",
+      "description": "Modern web platform optimized for performance and scalability.",
+      "stack": ["React", "Vite"],
+      "url": "",
+      "repo": ""
+    },
+    {
+      "name": "Sistema POS tipo SaaS",
+      "description": "Backend-oriented system for secure data management workflows.",
+      "stack": ["PHP", "MySQL"],
+      "url": "",
+      "repo": ""
     }
   ],
   "links": {
-    "github": "https://github.com/",
+    "github": "https://github.com/Slider00",
     "linkedin": "https://www.linkedin.com/in/julian-correa-b01535183/",
-    "whatsapp": "https://wa.me/573195328292"
+    "whatsapp": "https://wa.me/573195328292",
+    "cv_es": "models/cv.pdf",
+    "cv_en": "models/cv-en.pdf"
   }
 }
