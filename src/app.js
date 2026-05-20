@@ -44,6 +44,9 @@ Be concise, clear, professional. If data is unknown, say so.
 const AI_PROVIDER = process.env.AI_PROVIDER || "mock";
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.1:8b";
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GROQ_BASE_URL = process.env.GROQ_BASE_URL || "https://api.groq.com/openai/v1";
+const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
 const WHATSAPP_NUMBER = "573195328292";
 const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}`;
 const PROJECTS_FILE_URL = new URL("./data/projects.json", import.meta.url);
@@ -339,6 +342,30 @@ app.post("/api/chat", async (req, res) => {
       const ollamaData = await ollamaResponse.json();
       return res.json({
         reply: ollamaData?.message?.content ?? "",
+        suggestions: SUGGESTIONS,
+        actions: ACTIONS,
+      });
+    }
+
+    if (AI_PROVIDER === "groq") {
+      if (!GROQ_API_KEY || GROQ_API_KEY === "tu_groq_api_key") {
+        req.log.error("Invalid GROQ_API_KEY (missing or placeholder)");
+        return res.status(500).json({ error: "chat_error" });
+      }
+
+      const client = new OpenAI({
+        apiKey: GROQ_API_KEY,
+        baseURL: GROQ_BASE_URL,
+      });
+
+      const completion = await client.chat.completions.create({
+        model: GROQ_MODEL,
+        messages,
+        temperature: 0.4,
+      });
+
+      return res.json({
+        reply: completion.choices?.[0]?.message?.content ?? "",
         suggestions: SUGGESTIONS,
         actions: ACTIONS,
       });

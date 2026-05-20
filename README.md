@@ -23,6 +23,7 @@ cp .env.example .env
 
 3. Configura proveedor de IA en `.env`:
    - Gratis en deploy (recomendado): `AI_PROVIDER=mock`
+   - Gratis con límite (Groq): `AI_PROVIDER=groq`
    - Gratis local con modelo local: `AI_PROVIDER=ollama`
    - OpenAI (cuando quieras activarlo): `AI_PROVIDER=openai`
 4. Define los orígenes del frontend:
@@ -37,6 +38,12 @@ Variables para Ollama:
 Variables para OpenAI:
 
 - `OPENAI_API_KEY=sk-...`
+
+Variables para Groq:
+
+- `GROQ_API_KEY=gsk_...`
+- `GROQ_BASE_URL=https://api.groq.com/openai/v1`
+- `GROQ_MODEL=llama-3.1-8b-instant`
 
 Variables para Mock (sin costo):
 
