@@ -41,13 +41,23 @@ You are Julian Correa's portfolio assistant.
 Answer based on his profile, projects, skills and experience.
 Be concise, clear, professional. If data is unknown, say so.
 `;
-const AI_PROVIDER = process.env.AI_PROVIDER || "ollama";
+const AI_PROVIDER = process.env.AI_PROVIDER || "mock";
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.1:8b";
 const WHATSAPP_NUMBER = "573195328292";
 const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}`;
 const PROJECTS_FILE_URL = new URL("./data/projects.json", import.meta.url);
-const projectsData = JSON.parse(readFileSync(PROJECTS_FILE_URL, "utf-8"));
+let projectsData = {
+  profile: { name: "Julian Correa", role: "Software Developer", summary: "" },
+  skills: [],
+  projects: [],
+  links: {},
+};
+try {
+  projectsData = JSON.parse(readFileSync(PROJECTS_FILE_URL, "utf-8"));
+} catch (error) {
+  console.error("Could not load src/data/projects.json, using fallback mock context.", error);
+}
 const SUGGESTIONS = [
   "Muéstrame tus proyectos",
   "¿Qué tecnologías manejas?",
@@ -68,6 +78,43 @@ const PORTFOLIO_CONTEXT_PROMPT = `
 Portfolio data:
 ${JSON.stringify(projectsData)}
 `;
+const buildMockReply = (message) => {
+  const msg = message.toLowerCase();
+  const projectNames = (projectsData.projects || []).map((p) => p.name).filter(Boolean);
+  const skills = (projectsData.skills || []).filter(Boolean);
+  const role = projectsData.profile?.role || "Software Developer";
+  const summary = projectsData.profile?.summary || "";
+
+  if (/proyecto|project|portafolio|portfolio/.test(msg)) {
+    if (projectNames.length === 0) {
+      return "Actualmente no tengo proyectos cargados en el contexto.";
+    }
+    return `Estos son algunos proyectos destacados: ${projectNames.join(", ")}.`;
+  }
+
+  if (/tecnolog|stack|habilidad|skill/.test(msg)) {
+    if (skills.length === 0) {
+      return "Aún no tengo habilidades cargadas en el contexto.";
+    }
+    return `Trabajo principalmente con: ${skills.join(", ")}.`;
+  }
+
+  if (/experien|perfil|sobre ti|sobre usted|about/.test(msg)) {
+    return `${role}. ${summary}`.trim();
+  }
+
+  if (/github/.test(msg)) {
+    return `Puedes ver mis repositorios aquí: ${portfolioLinks.github || "https://github.com/"}`;
+  }
+
+  if (/linkedin/.test(msg)) {
+    return `Puedes ver mi perfil de LinkedIn aquí: ${
+      portfolioLinks.linkedin || "https://www.linkedin.com/"
+    }`;
+  }
+
+  return "Puedo ayudarte con información sobre proyectos, tecnologías, experiencia o contacto.";
+};
 const swaggerSpec = swaggerJSDoc({
   definition: {
     openapi: "3.0.3",
@@ -246,6 +293,14 @@ app.post("/api/chat", async (req, res) => {
           type: "whatsapp",
           url: WHATSAPP_LINK,
         },
+      });
+    }
+
+    if (AI_PROVIDER === "mock") {
+      return res.json({
+        reply: buildMockReply(parseResult.data.message),
+        suggestions: SUGGESTIONS,
+        actions: ACTIONS,
       });
     }
 

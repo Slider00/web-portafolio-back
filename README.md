@@ -22,7 +22,8 @@ cp .env.example .env
 ```
 
 3. Configura proveedor de IA en `.env`:
-   - Gratis local (recomendado): `AI_PROVIDER=ollama`
+   - Gratis en deploy (recomendado): `AI_PROVIDER=mock`
+   - Gratis local con modelo local: `AI_PROVIDER=ollama`
    - OpenAI (cuando quieras activarlo): `AI_PROVIDER=openai`
 4. Define los orígenes del frontend:
    - `FRONTEND_ORIGIN=http://localhost:5173`
@@ -36,6 +37,11 @@ Variables para Ollama:
 Variables para OpenAI:
 
 - `OPENAI_API_KEY=sk-...`
+
+Variables para Mock (sin costo):
+
+- `AI_PROVIDER=mock`
+- Responde desde contexto local (`src/data/projects.json`) sin llamar a proveedores externos.
 
 ## Scripts
 
@@ -99,6 +105,24 @@ Cómo escalar por módulos:
 - JSON OpenAPI: `http://localhost:4000/docs.json`
 
 Con el backend corriendo (`npm run dev`), abre `/docs` en el navegador para visualizar y probar los servicios.
+
+## Deploy en Vercel (modo gratis con mock)
+
+Este proyecto incluye entrypoint serverless para Vercel en `api/index.js` y rewrites en `vercel.json`.
+
+Variables recomendadas en Vercel:
+
+- `AI_PROVIDER=mock`
+- `FRONTEND_ORIGIN=http://localhost:5173`
+- `FRONTEND_ORIGIN_PROD=https://tu-frontend.vercel.app`
+
+No necesitas `OPENAI_API_KEY` para modo `mock`.
+
+Rutas en producción Vercel:
+
+- `/health`
+- `/api/chat`
+- `/docs`
 
 ## Ollama (gratis local)
 
