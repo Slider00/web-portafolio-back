@@ -72,40 +72,74 @@ const ACTIONS = [
 ];
 const buildMockReply = (message) => {
   const msg = message.toLowerCase();
+  const normalized = msg.normalize("NFD").replace(/\p{Diacritic}/gu, "");
   const projectNames = (projectsData.projects || []).map((p) => p.name).filter(Boolean);
   const skills = (projectsData.skills || []).filter(Boolean);
   const role = projectsData.profile?.role || "Software Developer";
   const summary = projectsData.profile?.summary || "";
+  const name = projectsData.profile?.name || "Julian Correa";
+  const experience = projectsData.experience || [];
 
-  if (/proyecto|project|portafolio|portfolio/.test(msg)) {
+  if (/^(\s)*(hola|hello|hi|buenas|hey)\b/.test(normalized)) {
+    return `Hola, soy el asistente del portafolio de ${name}. Te puedo contar sobre proyectos, tecnologías y experiencia.`;
+  }
+
+  if (/quien eres|who are you|que eres|about you|sobre ti/.test(normalized)) {
+    return `Soy el asistente del portafolio de ${name}. ${role}. ${summary}`.trim();
+  }
+
+  if (/proyecto|project|portafolio|portfolio/.test(normalized)) {
     if (projectNames.length === 0) {
       return "Actualmente no tengo proyectos cargados en el contexto.";
     }
-    return `Estos son algunos proyectos destacados: ${projectNames.join(", ")}.`;
+    const topProjects = projectNames.slice(0, 5).join(", ");
+    return `Estos son algunos proyectos destacados: ${topProjects}. Si quieres, te detallo uno en particular.`;
   }
 
-  if (/tecnolog|stack|habilidad|skill/.test(msg)) {
+  const matchedProject = (projectsData.projects || []).find((project) => {
+    const nameMatch = project.name?.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+    return nameMatch && normalized.includes(nameMatch);
+  });
+  if (matchedProject) {
+    const stack = (matchedProject.stack || []).join(", ");
+    return `${matchedProject.name}: ${matchedProject.description}${
+      stack ? ` Stack: ${stack}.` : ""
+    }`;
+  }
+
+  if (/tecnolog|stack|habilidad|skill|tecnic|tools/.test(normalized)) {
     if (skills.length === 0) {
       return "Aún no tengo habilidades cargadas en el contexto.";
     }
-    return `Trabajo principalmente con: ${skills.join(", ")}.`;
+    return `Trabajo principalmente con: ${skills.slice(0, 12).join(", ")}.`;
   }
 
-  if (/experien|perfil|sobre ti|sobre usted|about/.test(msg)) {
-    return `${role}. ${summary}`.trim();
+  if (/experien|perfil profesional|trayectoria|career|work experience/.test(normalized)) {
+    if (experience.length === 0) {
+      return `${role}. ${summary}`.trim();
+    }
+    const latest = experience[experience.length - 1];
+    return `Experiencia reciente: ${latest.title} en ${latest.company} (${latest.date}).`;
   }
 
-  if (/github/.test(msg)) {
+  if (/github/.test(normalized)) {
     return `Puedes ver mis repositorios aquí: ${portfolioLinks.github || "https://github.com/"}`;
   }
 
-  if (/linkedin/.test(msg)) {
+  if (/linkedin/.test(normalized)) {
     return `Puedes ver mi perfil de LinkedIn aquí: ${
       portfolioLinks.linkedin || "https://www.linkedin.com/"
     }`;
   }
 
-  return "Puedo ayudarte con información sobre proyectos, tecnologías, experiencia o contacto.";
+  if (/cv|resume|hoja de vida/.test(normalized)) {
+    if (portfolioLinks.cv_en || portfolioLinks.cv_es) {
+      return `Puedes revisar mi CV aquí: ${portfolioLinks.cv_en || portfolioLinks.cv_es}`;
+    }
+    return "Puedo compartirte mi CV si me lo pides por WhatsApp o LinkedIn.";
+  }
+
+  return `Puedo ayudarte con información sobre ${name}: proyectos, stack, experiencia y contacto.`;
 };
 const swaggerSpec = swaggerJSDoc({
   definition: {
@@ -306,3 +340,4 @@ app.post("/api/chat", async (req, res) => {
 });
 
 export { app };
+export default app;
