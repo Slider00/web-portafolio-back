@@ -34,7 +34,7 @@ app.use(
     },
   })
 );
-app.options("*", cors());
+app.options("/{*path}", cors());
 
 const SYSTEM_PROMPT = `
 You are Julian Correa's portfolio assistant.
