@@ -340,7 +340,5 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-const handler = (req, res) => app(req, res);
-
-export { app, handler };
-export default handler;
+export { app };
+export default app;
