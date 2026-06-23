@@ -8,6 +8,7 @@ import pinoHttp from "pino-http";
 import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import { z } from "zod";
+import { generateGeminiReply } from "./lib/gemini.js";
 
 const app = express();
 const ALLOWED_ORIGINS = [
@@ -78,10 +79,10 @@ const seedTestimonialsIfEmpty = async () => {
   }
 };
 const SUGGESTIONS = [
-  "Muéstrame tus proyectos",
-  "¿Qué tecnologías manejas?",
-  "Cuéntame tu experiencia",
-  "Quiero contactarte",
+  "Show me your projects",
+  "What technologies do you use?",
+  "Tell me about your experience",
+  "I want to contact you",
 ];
 const portfolioLinks = projectsData.links || {};
 const ACTIONS = [
@@ -93,77 +94,7 @@ const ACTIONS = [
     url: portfolioLinks.linkedin || "https://www.linkedin.com/",
   },
 ];
-const buildMockReply = (message) => {
-  const msg = message.toLowerCase();
-  const normalized = msg.normalize("NFD").replace(/\p{Diacritic}/gu, "");
-  const projectNames = (projectsData.projects || []).map((p) => p.name).filter(Boolean);
-  const skills = (projectsData.skills || []).filter(Boolean);
-  const role = projectsData.profile?.role || "Software Developer";
-  const summary = projectsData.profile?.summary || "";
-  const name = projectsData.profile?.name || "Julian Correa";
-  const experience = projectsData.experience || [];
 
-  if (/^(\s)*(hola|hello|hi|buenas|hey)\b/.test(normalized)) {
-    return `Hola, soy el asistente del portafolio de ${name}. Te puedo contar sobre proyectos, tecnologías y experiencia.`;
-  }
-
-  if (/quien eres|who are you|que eres|about you|sobre ti/.test(normalized)) {
-    return `Soy el asistente del portafolio de ${name}. ${role}. ${summary}`.trim();
-  }
-
-  if (/proyecto|project|portafolio|portfolio/.test(normalized)) {
-    if (projectNames.length === 0) {
-      return "Actualmente no tengo proyectos cargados en el contexto.";
-    }
-    const topProjects = projectNames.slice(0, 5).join(", ");
-    return `Estos son algunos proyectos destacados: ${topProjects}. Si quieres, te detallo uno en particular.`;
-  }
-
-  const matchedProject = (projectsData.projects || []).find((project) => {
-    const nameMatch = project.name?.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
-    return nameMatch && normalized.includes(nameMatch);
-  });
-  if (matchedProject) {
-    const stack = (matchedProject.stack || []).join(", ");
-    return `${matchedProject.name}: ${matchedProject.description}${
-      stack ? ` Stack: ${stack}.` : ""
-    }`;
-  }
-
-  if (/tecnolog|stack|habilidad|skill|tecnic|tools/.test(normalized)) {
-    if (skills.length === 0) {
-      return "Aún no tengo habilidades cargadas en el contexto.";
-    }
-    return `Trabajo principalmente con: ${skills.slice(0, 12).join(", ")}.`;
-  }
-
-  if (/experien|perfil profesional|trayectoria|career|work experience/.test(normalized)) {
-    if (experience.length === 0) {
-      return `${role}. ${summary}`.trim();
-    }
-    const latest = experience[experience.length - 1];
-    return `Experiencia reciente: ${latest.title} en ${latest.company} (${latest.date}).`;
-  }
-
-  if (/github/.test(normalized)) {
-    return `Puedes ver mis repositorios aquí: ${portfolioLinks.github || "https://github.com/"}`;
-  }
-
-  if (/linkedin/.test(normalized)) {
-    return `Puedes ver mi perfil de LinkedIn aquí: ${
-      portfolioLinks.linkedin || "https://www.linkedin.com/"
-    }`;
-  }
-
-  if (/cv|resume|hoja de vida/.test(normalized)) {
-    if (portfolioLinks.cv_en || portfolioLinks.cv_es) {
-      return `Puedes revisar mi CV aquí: ${portfolioLinks.cv_en || portfolioLinks.cv_es}`;
-    }
-    return "Puedo compartirte mi CV si me lo pides por WhatsApp o LinkedIn.";
-  }
-
-  return `Puedo ayudarte con información sobre ${name}: proyectos, stack, experiencia y contacto.`;
-};
 const swaggerSpec = swaggerJSDoc({
   definition: {
     openapi: "3.0.3",
@@ -465,7 +396,7 @@ app.post("/api/chat", async (req, res) => {
       /(contact|contactar|contacto|whatsapp|wpp|hablar|hablemos|escribirte|llamar|llamada)/i;
     if (contactIntentRegex.test(parseResult.data.message)) {
       return res.json({
-        reply: "Puedes escribirme directamente por WhatsApp.",
+        reply: "You can contact me directly on WhatsApp.",
         suggestions: SUGGESTIONS,
         actions: ACTIONS,
         contact: {
@@ -475,8 +406,31 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
+    let reply;
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        const dynamicSystemPrompt = `
+You are Julian Correa's portfolio AI assistant. 
+Answer questions based on his profile, projects, skills, experience, and contact links provided below.
+Be concise, clear, helpful, and professional. Respond in the same language as the user's message (mostly Spanish or English).
+
+If the user asks about projects, skills, or experience, use the context provided.
+If the information is not in the context, politely state that you do not know or that you cannot answer that specific question, but offer to direct them to his contact links.
+
+Here is the structured profile context:
+${JSON.stringify(projectsData, null, 2)}
+`;
+        reply = await generateGeminiReply(parseResult.data.message, historyMessages, dynamicSystemPrompt);
+      } catch (geminiErr) {
+        req.log.error(geminiErr, "gemini_api_error_falling_back_to_generic_message");
+        reply = "Sorry, my smart assistant service is experiencing technical issues right now. Feel free to contact me directly on WhatsApp using the button below.";
+      }
+    } else {
+      reply = "Sorry, the AI assistant service is not configured at this time. Please try again later or reach out via my social links.";
+    }
+
     return res.json({
-      reply: buildMockReply(parseResult.data.message),
+      reply,
       suggestions: SUGGESTIONS,
       actions: ACTIONS,
     });
