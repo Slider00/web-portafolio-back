@@ -1,0 +1,56 @@
+[
+  {
+    "name": "Google",
+    "username": "@google",
+    "body": "This is a test comment from the agent!",
+    "img": "https://robohash.org/Google?size=100x100"
+  },
+  {
+    "name": "Jack",
+    "username": "@jack",
+    "body": "Amazing. I love it.",
+    "img": "https://robohash.org/jack"
+  },
+  {
+    "name": "Jill",
+    "username": "@jill",
+    "body": "Speechless. This is amazing.",
+    "img": "https://robohash.org/jill"
+  },
+  {
+    "name": "John",
+    "username": "@john",
+    "body": "I love it.",
+    "img": "https://robohash.org/john"
+  },
+  {
+    "name": "Alice",
+    "username": "@alice",
+    "body": "Highly recommend!",
+    "img": "https://robohash.org/alice"
+  },
+  {
+    "name": "Bob",
+    "username": "@bob",
+    "body": "Phenomenal attention to detail.",
+    "img": "https://robohash.org/bob"
+  },
+  {
+    "name": "Charlie",
+    "username": "@charlie",
+    "body": "Absolutely stunning!",
+    "img": "https://robohash.org/charlie"
+  },
+  {
+    "name": "Dave",
+    "username": "@dave",
+    "body": "Best decision I've made.",
+    "img": "https://robohash.org/dave"
+  },
+  {
+    "name": "Eve",
+    "username": "@eve",
+    "body": "Changed the game for me.",
+    "img": "https://robohash.org/eve"
+  }
+]

@@ -2,6 +2,8 @@ import cors from "cors";
 import express from "express";
 import { readFileSync } from "node:fs";
 import helmet from "helmet";
+import { connectDB } from "./lib/db.js";
+import { Testimonial } from "./models/testimonial.model.js";
 import pinoHttp from "pino-http";
 import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
@@ -55,6 +57,26 @@ try {
 } catch (error) {
   console.error("Could not load src/data/projects.json, using fallback mock context.", error);
 }
+
+const TESTIMONIALS_FILE_URL = new URL("./data/testimonials.json", import.meta.url);
+let testimonialsData = [];
+try {
+  testimonialsData = JSON.parse(readFileSync(TESTIMONIALS_FILE_URL, "utf-8"));
+} catch (error) {
+  console.error("Could not load src/data/testimonials.json, using empty array.", error);
+}
+
+const seedTestimonialsIfEmpty = async () => {
+  try {
+    const count = await Testimonial.countDocuments();
+    if (count === 0 && testimonialsData.length > 0) {
+      console.log("Testimonial collection is empty. Seeding with default data...");
+      await Testimonial.insertMany(testimonialsData);
+    }
+  } catch (error) {
+    console.error("Could not seed testimonials:", error);
+  }
+};
 const SUGGESTIONS = [
   "Muéstrame tus proyectos",
   "¿Qué tecnologías manejas?",
@@ -154,9 +176,30 @@ const swaggerSpec = swaggerJSDoc({
     tags: [
       { name: "Health", description: "Estado del servicio" },
       { name: "Chat", description: "Asistente de portafolio" },
+      { name: "Testimonials", description: "Testimonios y comentarios de clientes" },
     ],
     components: {
       schemas: {
+        TestimonialRequest: {
+          type: "object",
+          properties: {
+            name: { type: "string", example: "Tesla" },
+            username: { type: "string", example: "@tesla" },
+            body: { type: "string", example: "Excelente servicio y atención." },
+            img: { type: "string", example: "https://robohash.org/Tesla" },
+          },
+          required: ["name", "body"],
+        },
+        TestimonialResponse: {
+          type: "object",
+          properties: {
+            name: { type: "string", example: "Tesla" },
+            username: { type: "string", example: "@tesla" },
+            body: { type: "string", example: "Excelente servicio y atención." },
+            img: { type: "string", example: "https://robohash.org/Tesla" },
+          },
+          required: ["name", "username", "body", "img"],
+        },
         ChatHistoryItem: {
           type: "object",
           properties: {
@@ -275,6 +318,63 @@ const swaggerSpec = swaggerJSDoc({
           },
         },
       },
+      "/api/testimonials": {
+        get: {
+          tags: ["Testimonials"],
+          summary: "Obtener lista de testimonios",
+          responses: {
+            200: {
+              description: "Lista de testimonios obtenida correctamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/TestimonialResponse" },
+                  },
+                },
+              },
+            },
+          },
+        },
+        post: {
+          tags: ["Testimonials"],
+          summary: "Crear un nuevo testimonio",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/TestimonialRequest" },
+              },
+            },
+          },
+          responses: {
+            201: {
+              description: "Testimonio creado correctamente",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/TestimonialResponse" },
+                },
+              },
+            },
+            400: {
+              description: "Datos de entrada inválidos",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
+                },
+              },
+            },
+            500: {
+              description: "Error interno del servidor",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
+                },
+              },
+            },
+          },
+        },
+      },
     },
   },
   apis: [],
@@ -295,7 +395,59 @@ const chatBodySchema = z.object({
     .default([]),
 });
 
+const testimonialBodySchema = z.object({
+  name: z.string().min(1, "name is required"),
+  username: z.string().optional().default("@anonimo"),
+  body: z.string().min(1, "body is required"),
+  img: z.string().optional(),
+});
+
 app.get("/health", (_, res) => res.json({ ok: true }));
+
+app.get("/api/testimonials", async (req, res) => {
+  try {
+    await connectDB();
+    await seedTestimonialsIfEmpty();
+    const list = await Testimonial.find().sort({ createdAt: -1 });
+    return res.json(list);
+  } catch (err) {
+    req.log.error(err, "testimonials_get_error");
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.post("/api/testimonials", async (req, res) => {
+  try {
+    const parseResult = testimonialBodySchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ error: parseResult.error.issues[0]?.message });
+    }
+
+    await connectDB();
+
+    const { name, username, body, img } = parseResult.data;
+
+    let formattedUsername = username ? username.trim() : "@anonimo";
+    if (formattedUsername !== "@anonimo" && !formattedUsername.startsWith("@")) {
+      formattedUsername = `@${formattedUsername}`;
+    }
+
+    const finalImg =
+      img || `https://robohash.org/${encodeURIComponent(name.trim())}?size=100x100`;
+
+    const newTestimonial = await Testimonial.create({
+      name: name.trim(),
+      username: formattedUsername,
+      body: body.trim(),
+      img: finalImg,
+    });
+
+    return res.status(201).json(newTestimonial);
+  } catch (err) {
+    req.log.error(err, "testimonials_post_error");
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 
 app.post("/api/chat", async (req, res) => {
   try {
