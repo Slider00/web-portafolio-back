@@ -9,6 +9,7 @@ import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import { z } from "zod";
 import { generateGeminiReply } from "./lib/gemini.js";
+import { sessions, sendAdminMessage } from "./lib/sockets.js";
 
 const app = express();
 const ALLOWED_ORIGINS = [
@@ -443,6 +444,60 @@ ${JSON.stringify(projectsData, null, 2)}
       "chat_error"
     );
     return res.status(500).json({ error: "chat_error" });
+  }
+});
+
+app.post("/api/telegram/webhook", (req, res) => {
+  // Responder inmediatamente con 200 OK para evitar reintentos de Telegram
+  res.status(200).send("OK");
+
+  try {
+    const { message } = req.body;
+    if (!message || !message.text) return;
+
+    const myChatId = process.env.TELEGRAM_MY_CHAT_ID;
+    if (String(message.chat.id) !== String(myChatId)) {
+      req.log.warn({ chatId: message.chat.id }, "Mensaje de Telegram ignorado: chat_id no autorizado.");
+      return;
+    }
+
+    // Comprobar si es respuesta a un mensaje del bot
+    if (!message.reply_to_message || !message.reply_to_message.text) {
+      return;
+    }
+
+    const replyText = message.reply_to_message.text;
+    
+    // Extraer ID de la sesión con regex
+    const match = replyText.match(/\[Reclutador id:\s*<code>([^<]+)<\/code>\]/)
+               || replyText.match(/id:\s*<code>([^<]+)<\/code>/)
+               || replyText.match(/id:\s*([^\s\]]+)/);
+
+    if (!match) {
+      req.log.warn({ replyText }, "No se pudo extraer el ID de la sesión del mensaje respondido.");
+      return;
+    }
+
+    const chatId = match[1].trim();
+    const session = sessions.get(chatId);
+
+    if (!session) {
+      req.log.warn({ chatId }, "Sesión de sockets inactiva o expirada.");
+      return;
+    }
+
+    const text = message.text;
+    session.history.push({ role: "assistant", content: text });
+
+    // Emitir mensaje por WebSockets al cliente
+    const sent = sendAdminMessage(chatId, text);
+    if (sent) {
+      req.log.info({ chatId }, "Mensaje del admin enrutado con éxito por WebSocket.");
+    } else {
+      req.log.error({ chatId }, "Fallo al emitir mensaje por WebSocket.");
+    }
+  } catch (err) {
+    req.log.error(err, "telegram_webhook_error");
   }
 });
 
