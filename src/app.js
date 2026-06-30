@@ -9,7 +9,8 @@ import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import { z } from "zod";
 import { generateGeminiReply } from "./lib/gemini.js";
-import { sessions, sendAdminMessage } from "./lib/sockets.js";
+import { sessions, sendAdminMessage, resetToAi } from "./lib/sockets.js";
+import { telegram } from "./lib/telegram.js";
 
 const app = express();
 const ALLOWED_ORIGINS = [
@@ -447,7 +448,7 @@ ${JSON.stringify(projectsData, null, 2)}
   }
 });
 
-app.post("/api/telegram/webhook", (req, res) => {
+app.post("/api/telegram/webhook", async (req, res) => {
   // Responder inmediatamente con 200 OK para evitar reintentos de Telegram
   res.status(200).send("OK");
 
@@ -468,10 +469,10 @@ app.post("/api/telegram/webhook", (req, res) => {
 
     const replyText = message.reply_to_message.text;
     
-    // Extraer ID de la sesión con regex
-    const match = replyText.match(/\[Reclutador id:\s*<code>([^<]+)<\/code>\]/)
-               || replyText.match(/id:\s*<code>([^<]+)<\/code>/)
-               || replyText.match(/id:\s*([^\s\]]+)/);
+    // Extraer ID de la sesión con regex (usando bandera /i para ignorar mayúsculas/minúsculas)
+    const match = replyText.match(/\[Reclutador id:\s*<code>([^<]+)<\/code>\]/i)
+               || replyText.match(/id:\s*<code>([^<]+)<\/code>/i)
+               || replyText.match(/id:\s*([^\s\]]+)/i);
 
     if (!match) {
       req.log.warn({ replyText }, "No se pudo extraer el ID de la sesión del mensaje respondido.");
@@ -486,7 +487,20 @@ app.post("/api/telegram/webhook", (req, res) => {
       return;
     }
 
-    const text = message.text;
+    const text = message.text.trim();
+    
+    // Si envías /ai o /close, finalizamos el takeover y volvemos a la IA
+    if (text.toLowerCase() === "/ai" || text.toLowerCase() === "/close") {
+      const reset = await resetToAi(chatId);
+      if (reset) {
+        await telegram.sendMessage(
+          `🏁 <b>[Modo IA Restablecido]</b>\nHas finalizado el chat en vivo para el usuario <code>${chatId}</code>.`
+        );
+        req.log.info({ chatId }, "Sesión revertida a modo IA por comando de Telegram.");
+      }
+      return;
+    }
+
     session.history.push({ role: "assistant", content: text });
 
     // Emitir mensaje por WebSockets al cliente

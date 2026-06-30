@@ -1,10 +1,11 @@
 import pino from "pino";
 import { telegram } from "./telegram.js";
 import { generateGeminiReply } from "./gemini.js";
+import { Chat } from "../models/chat.model.js";
 
 const logger = pino();
 
-// Almacén en memoria para hilos de chat
+// Almacén en memoria para asociar chatId con socketId
 // Estructura: chatId -> { socketId, mode: "ai" | "human", history: [] }
 export const sessions = new Map();
 let socketServer = null;
@@ -18,39 +19,90 @@ Be concise, clear, professional.
 export function sendAdminMessage(chatId, text) {
   if (socketServer) {
     socketServer.to(chatId).emit("mensaje-servidor", { text, sender: "Julián" });
+
+    // Guardar en el historial en memoria
+    const session = sessions.get(chatId);
+    if (session) {
+      session.history.push({ role: "assistant", content: text, sender: "Julián" });
+    }
+
+    // Persistir en MongoDB
+    Chat.updateOne(
+      { chatId },
+      {
+        $push: {
+          history: { role: "assistant", content: text, sender: "Julián" },
+        },
+      }
+    ).catch((err) => logger.error(`Error al guardar mensaje de admin en DB para ${chatId}:`, err));
+
     return true;
   }
   return false;
 }
 
+export async function resetToAi(chatId) {
+  const session = sessions.get(chatId);
+  if (session) {
+    session.mode = "ai";
+  }
+
+  try {
+    await Chat.updateOne({ chatId }, { $set: { mode: "ai" } });
+  } catch (err) {
+    logger.error(`Error al restablecer modo en DB para ${chatId}:`, err);
+  }
+
+  if (socketServer) {
+    socketServer.to(chatId).emit("live-chat-status", { mode: "ai" });
+    socketServer.to(chatId).emit("mensaje-servidor", {
+      text: "Julián ha finalizado el chat en vivo. La IA vuelve a estar activa.",
+      sender: "Sistema",
+    });
+  }
+  return true;
+}
+
 export function initSockets(io) {
-  socketServer = io;
   logger.info("Inicializando Socket.io handler...");
+  socketServer = io;
 
   io.on("connection", (socket) => {
     logger.info(`Nuevo socket conectado: ${socket.id}`);
 
     // Cliente (Portafolio) se une a una sesión
-    socket.on("join-chat", ({ chatId }) => {
+    socket.on("join-chat", async ({ chatId }) => {
       if (!chatId) return;
 
       socket.join(chatId);
       logger.info(`Socket ${socket.id} se unió a la sala/sesión: ${chatId}`);
 
-      // Recuperar o inicializar sesión
-      if (sessions.has(chatId)) {
-        const session = sessions.get(chatId);
-        session.socketId = socket.id; // Actualizar con el socket ID actual
-        logger.info(`Sesión recuperada para ${chatId}. Modo actual: ${session.mode}`);
-        // Notificar al cliente el estado actual del modo
-        socket.emit("live-chat-status", { mode: session.mode });
-      } else {
+      try {
+        // Cargar chat de MongoDB o crearlo si no existe
+        let chat = await Chat.findOne({ chatId });
+        if (!chat) {
+          chat = await Chat.create({ chatId, mode: "ai", history: [] });
+          logger.info(`Nueva sesión de chat creada en DB para ${chatId}.`);
+        } else {
+          logger.info(`Sesión recuperada de DB para ${chatId}. Modo: ${chat.mode}`);
+        }
+
+        // Actualizar el mapeo en memoria
         sessions.set(chatId, {
           socketId: socket.id,
-          mode: "ai",
-          history: [],
+          mode: chat.mode,
+          history: chat.history,
         });
-        logger.info(`Nueva sesión creada para ${chatId}.`);
+
+        // Enviar historial previo al cliente si tiene mensajes
+        if (chat.history && chat.history.length > 0) {
+          socket.emit("chat-history", chat.history);
+        }
+
+        // Notificar al cliente el estado actual del modo
+        socket.emit("live-chat-status", { mode: chat.mode });
+      } catch (err) {
+        logger.error(`Error al unirse al chat ${chatId}:`, err);
         socket.emit("live-chat-status", { mode: "ai" });
       }
     });
@@ -65,8 +117,20 @@ export function initSockets(io) {
         return;
       }
 
-      // Guardar el mensaje del usuario en el historial
+      // Guardar el mensaje del usuario en el historial en memoria y MongoDB
       session.history.push({ role: "user", content: text });
+      try {
+        await Chat.updateOne(
+          { chatId },
+          {
+            $push: {
+              history: { role: "user", content: text },
+            },
+          }
+        );
+      } catch (err) {
+        logger.error(`Error al persistir mensaje de cliente para ${chatId}:`, err);
+      }
 
       if (session.mode === "human") {
         // Enrutar mensaje a Telegram
@@ -80,8 +144,7 @@ export function initSockets(io) {
             sender: "Sistema",
           });
           // Revertir a IA temporalmente
-          session.mode = "ai";
-          socket.emit("live-chat-status", { mode: "ai" });
+          await resetToAi(chatId);
         }
       } else {
         // Enrutar mensaje a la IA (Gemini)
@@ -94,7 +157,18 @@ export function initSockets(io) {
           }));
 
           const reply = await generateGeminiReply(text, historyMessages, SYSTEM_PROMPT);
-          session.history.push({ role: "assistant", content: reply });
+          
+          session.history.push({ role: "assistant", content: reply, sender: "IA" });
+          
+          // Persistir en MongoDB
+          await Chat.updateOne(
+            { chatId },
+            {
+              $push: {
+                history: { role: "assistant", content: reply, sender: "IA" },
+              },
+            }
+          );
 
           // Emitir respuesta al cliente
           io.to(chatId).emit("mensaje-servidor", { text: reply, sender: "IA" });
@@ -116,7 +190,13 @@ export function initSockets(io) {
       if (!session) return;
 
       session.mode = "human";
-      logger.info(`Sesión ${chatId} cambió a modo Humano (Julián).`);
+      logger.info(`Sesión ${chatId} cambió a modo Humano (Julián) en memoria.`);
+
+      try {
+        await Chat.updateOne({ chatId }, { $set: { mode: "human" } });
+      } catch (err) {
+        logger.error(`Error al persistir cambio de modo para ${chatId}:`, err);
+      }
 
       // Notificar al cliente
       io.to(chatId).emit("live-chat-status", { mode: "human" });
@@ -131,9 +211,20 @@ export function initSockets(io) {
       );
     });
 
+    // Cliente finaliza chat en vivo y vuelve a la IA
+    socket.on("exit-live-chat", async ({ chatId }) => {
+      if (!chatId) return;
+      const reset = await resetToAi(chatId);
+      if (reset) {
+        logger.info(`Sesión ${chatId} revertida a modo IA por el cliente.`);
+        await telegram.sendMessage(
+          `🏁 <b>[Chat Finalizado]</b>\nEl reclutador con ID <code>${chatId}</code> ha finalizado la sesión en directo. La IA vuelve a estar activa.`
+        );
+      }
+    });
+
     socket.on("disconnect", () => {
       logger.info(`Socket desconectado: ${socket.id}`);
-      // Nota: No borramos la sesión del mapa para permitir reconexiones y mantener el historial.
     });
   });
 }
