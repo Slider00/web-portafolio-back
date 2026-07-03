@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import pino from "pino";
 import { telegram } from "./telegram.js";
 import { generateGeminiReply } from "./gemini.js";
@@ -10,10 +11,24 @@ const logger = pino();
 export const sessions = new Map();
 let socketServer = null;
 
+const PROJECTS_FILE_URL = new URL("../data/projects.json", import.meta.url);
+let projectsData = { profile: {}, skills: [], experience: [], projects: [], links: {} };
+try {
+  projectsData = JSON.parse(readFileSync(PROJECTS_FILE_URL, "utf-8"));
+} catch (error) {
+  logger.error("Could not load projects.json in sockets.js", error);
+}
+
 const SYSTEM_PROMPT = `
-You are Julian Correa's portfolio assistant.
-Answer based on his profile, projects, skills and experience.
-Be concise, clear, professional.
+You are Julian Correa's portfolio AI assistant. 
+Answer questions based on his profile, projects, skills, experience, education, and contact links provided below.
+Be concise, clear, helpful, and professional. Respond in the same language as the user's message (mostly Spanish or English).
+
+If the user asks about projects, skills, experience, or education, use the context provided.
+If the information is not in the context, politely state that you do not know or that you cannot answer that specific question, but offer to direct them to his contact links.
+
+Here is the structured profile context:
+${JSON.stringify(projectsData, null, 2)}
 `;
 
 export function sendAdminMessage(chatId, text) {

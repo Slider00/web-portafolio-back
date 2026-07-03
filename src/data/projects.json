@@ -116,11 +116,21 @@
       "repo": ""
     }
   ],
+  "education": [
+    {
+      "degree": "Ingeniero Informático",
+      "institution": "Corporación Universitaria de Sabaneta (Unisabaneta)",
+      "date": "2023-03-10",
+      "country": "Colombia",
+      "details": "Título oficial de pregrado como Ingeniero Informático, autorizado por el Ministerio de Educación Nacional de Colombia. Acta 294, Folio 002, libro 15, Diploma Nº 3002."
+    }
+  ],
   "links": {
     "github": "https://github.com/Slider00",
     "linkedin": "https://www.linkedin.com/in/julian-correa-b01535183/",
     "whatsapp": "https://wa.me/573195328292",
     "cv_es": "models/cv.pdf",
-    "cv_en": "models/cv-en.pdf"
+    "cv_en": "models/cv-en.pdf",
+    "diploma": "models/diploma.pdf"
   }
 }
