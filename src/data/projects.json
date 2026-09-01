@@ -114,6 +114,13 @@
       "stack": ["PHP", "MySQL"],
       "url": "",
       "repo": ""
+    },
+    {
+      "name": "Portal Geográfico de Gestión Logística en Emergencias (SIG Reactivo)",
+      "description": "Sistema de Información Geográfica reactivo para la gestión logística en emergencias. Sincroniza sismos en tiempo real con la USGS, permite la creación de reportes ciudadanos en terreno mediante doble clic en el mapa y calcula automáticamente suministros de ayuda humanitaria (Agua, Alimentos, Carpas, Kits de Aseo, Atención Médica) según estándares de la Cruz Roja.",
+      "stack": ["React / Next.js", "TypeScript", "TailwindCSS", "Node.js"],
+      "url": "",
+      "repo": ""
     }
   ],
   "education": [
